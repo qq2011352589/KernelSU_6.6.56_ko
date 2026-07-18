@@ -3,36 +3,61 @@ name: Build KSU ko for 6.6.56
 on:
   workflow_dispatch:
     inputs:
-      ddk_release:
-        description: 'DDK Release (对应 AOSP android15-6.6 月度标签)'
+      kernel_tag:
+        description: 'AOSP kernel tag (包含 android15-6.6 对应版本的内核源码)'
         required: false
-        default: '20260313'
+        default: 'android15-6.6-2025-04_r11'
         type: string
 
 jobs:
   build-ko:
-    name: Build kernelsu.ko for android15-6.6
+    name: Build kernelsu.ko for kernel 6.6.56
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/ylarod/ddk-min:android15-6.6-${{ inputs.ddk_release }}
+      image: ghcr.io/ylarod/ddk-min:android15-6.6-20260313
       options: --privileged
 
     steps:
-      - name: Checkout source
+      - name: Checkout KernelSU source
         uses: actions/checkout@v7
+        with:
+          path: kernelsu
+
+      - name: Clone AOSP kernel source (${{ inputs.kernel_tag }})
+        run: |
+          git clone --depth=1 https://android.googlesource.com/kernel/common kernel-source
+          cd kernel-source
+          git fetch --depth=1 origin refs/tags/${{ inputs.kernel_tag }}
+          git fetch --depth=1 origin refs/tags/${{ inputs.kernel_tag }}^{}
+          git checkout ${{ inputs.kernel_tag }}
+          echo "Kernel version: $(head -5 Makefile | grep VERSION)"
+
+      - name: Configure kernel
+        run: |
+          cd kernel-source/common
+          make ARCH=arm64 LLVM=1 gki_defconfig
+          # Enable KernelSU as module
+          echo "CONFIG_KSU=m" >> .config
+          make ARCH=arm64 LLVM=1 olddefconfig
+          make ARCH=arm64 LLVM=1 modules_prepare
+          echo "=== Kernel prepare done ==="
 
       - name: Build kernelsu.ko
         run: |
-          cd kernel
-          CONFIG_KSU=m CC=clang make
-
+          make -C kernel-source/common \
+            M=$GITHUB_WORKSPACE/kernelsu/kernel \
+            ARCH=arm64 LLVM=1 \
+            -j$(nproc) modules
           echo "=== Build completed ==="
 
+      - name: Strip and copy
+        run: |
           mkdir -p /github/workspace/out
-          cp kernelsu.ko /github/workspace/out/kernelsu_6.6.56.ko
+          cp kernelsu/kernel/kernelsu.ko /github/workspace/out/kernelsu_6.6.56.ko
           echo "Size: $(du -h /github/workspace/out/kernelsu_6.6.56.ko | cut -f1)"
           llvm-strip -d /github/workspace/out/kernelsu_6.6.56.ko
           echo "Size after strip: $(du -h /github/workspace/out/kernelsu_6.6.56.ko | cut -f1)"
+          ls -la /github/workspace/out/
 
       - name: Upload kernelsu.ko
         uses: actions/upload-artifact@v7
