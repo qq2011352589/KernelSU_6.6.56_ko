@@ -44,8 +44,6 @@ jobs:
           echo "Kernel source dir: $KERNEL_DIR"
           cd "$KERNEL_DIR"
           make ARCH=arm64 LLVM=1 gki_defconfig
-          echo "CONFIG_KSU=m" >> .config
-          make ARCH=arm64 LLVM=1 olddefconfig
           make ARCH=arm64 LLVM=1 modules_prepare
           echo "=== Kernel prepare done ==="
 
@@ -57,9 +55,11 @@ jobs:
           fi
           echo "KERNEL_DIR=$KERNEL_DIR"
           echo "MODULE_DIR=$GITHUB_WORKSPACE/kernelsu/kernel"
+          # CONFIG_KSU=m 必须作为 make 参数传递，写入 .config 无效
           make -C "$KERNEL_DIR" \
             M=$GITHUB_WORKSPACE/kernelsu/kernel \
             ARCH=arm64 LLVM=1 \
+            CONFIG_KSU=m \
             -j$(nproc) modules
           echo "=== Build completed, checking artifacts ==="
           ls -la $GITHUB_WORKSPACE/kernelsu/kernel/*.ko 2>&1 || true
