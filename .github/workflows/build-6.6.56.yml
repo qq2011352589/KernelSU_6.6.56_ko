@@ -1,0 +1,41 @@
+name: Build KSU ko for 6.6.56
+
+on:
+  workflow_dispatch:
+    inputs:
+      ddk_release:
+        description: 'DDK Release (对应 AOSP android15-6.6 月度标签)'
+        required: false
+        default: '20260313'
+        type: string
+
+jobs:
+  build-ko:
+    name: Build kernelsu.ko for android15-6.6
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/ylarod/ddk-min:android15-6.6-${{ inputs.ddk_release }}
+      options: --privileged
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Build kernelsu.ko
+        run: |
+          cd kernel
+          CONFIG_KSU=m CC=clang make
+
+          echo "=== Build completed ==="
+
+          mkdir -p /github/workspace/out
+          cp kernelsu.ko /github/workspace/out/kernelsu_6.6.56.ko
+          echo "Size: $(du -h /github/workspace/out/kernelsu_6.6.56.ko | cut -f1)"
+          llvm-strip -d /github/workspace/out/kernelsu_6.6.56.ko
+          echo "Size after strip: $(du -h /github/workspace/out/kernelsu_6.6.56.ko | cut -f1)"
+
+      - name: Upload kernelsu.ko
+        uses: actions/upload-artifact@v7
+        with:
+          name: kernelsu-6.6.56
+          path: /github/workspace/out/kernelsu_6.6.56.ko
