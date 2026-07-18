@@ -34,7 +34,7 @@ jobs:
           echo "=== Directory structure ==="
           ls -la
 
-      - name: Configure kernel
+      - name: Configure and build kernel
         run: |
           # 检测内核源码位置：可能在根目录或 common/ 下
           KERNEL_DIR="$GITHUB_WORKSPACE/kernel-source"
@@ -44,12 +44,8 @@ jobs:
           echo "Kernel source dir: $KERNEL_DIR"
           cd "$KERNEL_DIR"
           make ARCH=arm64 LLVM=1 gki_defconfig
-          make ARCH=arm64 LLVM=1 modules_prepare
-          echo "=== Generating SELinux headers ==="
-          # KSU 依赖 selinux/flask.h 等生成的头文件
-          make ARCH=arm64 LLVM=1 scripts 2>&1 | tail -3
-          make ARCH=arm64 LLVM=1 security/selinux/ 2>&1 | tail -10
-          echo "=== Kernel prepare done ==="
+          make ARCH=arm64 LLVM=1 -j$(nproc) 2>&1 | tail -20
+          echo "=== Kernel build done (Module.symvers generated) ==="
 
       - name: Build kernelsu.ko
         run: |
