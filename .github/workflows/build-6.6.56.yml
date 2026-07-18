@@ -55,16 +55,33 @@ jobs:
           if [ -f "$KERNEL_DIR/common/Makefile" ]; then
             KERNEL_DIR="$KERNEL_DIR/common"
           fi
+          echo "KERNEL_DIR=$KERNEL_DIR"
+          echo "MODULE_DIR=$GITHUB_WORKSPACE/kernelsu/kernel"
           make -C "$KERNEL_DIR" \
             M=$GITHUB_WORKSPACE/kernelsu/kernel \
             ARCH=arm64 LLVM=1 \
             -j$(nproc) modules
-          echo "=== Build completed ==="
+          echo "=== Build completed, checking artifacts ==="
+          ls -la $GITHUB_WORKSPACE/kernelsu/kernel/*.ko 2>&1 || true
+          find $GITHUB_WORKSPACE -name "*.ko" 2>/dev/null
 
       - name: Strip and copy
         run: |
           mkdir -p /github/workspace/out
-          cp kernelsu/kernel/kernelsu.ko /github/workspace/out/kernelsu_6.6.56.ko
+          find $GITHUB_WORKSPACE -name "kernelsu.ko" -type f 2>/dev/null
+          if [ -f $GITHUB_WORKSPACE/kernelsu/kernel/kernelsu.ko ]; then
+            cp $GITHUB_WORKSPACE/kernelsu/kernel/kernelsu.ko /github/workspace/out/kernelsu_6.6.56.ko
+          else
+            # Try to find it anywhere
+            KO=$(find $GITHUB_WORKSPACE -name "kernelsu.ko" -type f 2>/dev/null | head -1)
+            if [ -n "$KO" ]; then
+              cp "$KO" /github/workspace/out/kernelsu_6.6.56.ko
+            else
+              echo "ERROR: kernelsu.ko not found!"
+              ls -la $GITHUB_WORKSPACE/kernelsu/kernel/
+              exit 1
+            fi
+          fi
           echo "Size: $(du -h /github/workspace/out/kernelsu_6.6.56.ko | cut -f1)"
           llvm-strip -d /github/workspace/out/kernelsu_6.6.56.ko
           echo "Size after strip: $(du -h /github/workspace/out/kernelsu_6.6.56.ko | cut -f1)"
