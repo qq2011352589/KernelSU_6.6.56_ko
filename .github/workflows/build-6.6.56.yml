@@ -27,8 +27,7 @@ jobs:
         run: |
           git clone --depth=1 https://android.googlesource.com/kernel/common kernel-source
           cd kernel-source
-          git fetch --depth=1 origin refs/tags/${{ inputs.kernel_tag }}
-          git fetch --depth=1 origin refs/tags/${{ inputs.kernel_tag }}^{}
+          git fetch --depth=1 origin tag ${{ inputs.kernel_tag }}
           git checkout ${{ inputs.kernel_tag }}
           echo "Kernel version: $(head -5 Makefile | grep VERSION)"
 
