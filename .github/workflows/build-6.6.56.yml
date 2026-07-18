@@ -6,7 +6,7 @@ on:
       kernel_tag:
         description: 'AOSP kernel tag (包含 android15-6.6 对应版本的内核源码)'
         required: false
-        default: 'android15-6.6-2025-04_r11'
+        default: 'android15-6.6-2024-11_r22'
         type: string
 
 jobs:
