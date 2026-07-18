@@ -55,11 +55,13 @@ jobs:
           fi
           echo "KERNEL_DIR=$KERNEL_DIR"
           echo "MODULE_DIR=$GITHUB_WORKSPACE/kernelsu/kernel"
-          # CONFIG_KSU=m 必须作为 make 参数传递，写入 .config 无效
+          # CONFIG_KSU=m 必须作为 make 参数传递
+          # KBUILD_MODPOST_WARN=1: 部分符号在 AOSP GKI 中未导出但 KSU 运行时通过 kallsyms 解析
           make -C "$KERNEL_DIR" \
             M=$GITHUB_WORKSPACE/kernelsu/kernel \
             ARCH=arm64 LLVM=1 \
             CONFIG_KSU=m \
+            KBUILD_MODPOST_WARN=1 \
             -j$(nproc) modules
           echo "=== Build completed, checking artifacts ==="
           ls -la $GITHUB_WORKSPACE/kernelsu/kernel/*.ko 2>&1 || true
