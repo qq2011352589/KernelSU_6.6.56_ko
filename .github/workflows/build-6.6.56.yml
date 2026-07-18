@@ -29,13 +29,21 @@ jobs:
           cd kernel-source
           git fetch --depth=1 origin tag ${{ inputs.kernel_tag }}
           git checkout ${{ inputs.kernel_tag }}
-          echo "Kernel version: $(head -5 Makefile | grep VERSION)"
+          echo "=== Kernel version ==="
+          head -5 Makefile
+          echo "=== Directory structure ==="
+          ls -la
 
       - name: Configure kernel
         run: |
-          cd kernel-source/common
+          # 检测内核源码位置：可能在根目录或 common/ 下
+          KERNEL_DIR="$GITHUB_WORKSPACE/kernel-source"
+          if [ -f "$KERNEL_DIR/common/Makefile" ]; then
+            KERNEL_DIR="$KERNEL_DIR/common"
+          fi
+          echo "Kernel source dir: $KERNEL_DIR"
+          cd "$KERNEL_DIR"
           make ARCH=arm64 LLVM=1 gki_defconfig
-          # Enable KernelSU as module
           echo "CONFIG_KSU=m" >> .config
           make ARCH=arm64 LLVM=1 olddefconfig
           make ARCH=arm64 LLVM=1 modules_prepare
@@ -43,7 +51,11 @@ jobs:
 
       - name: Build kernelsu.ko
         run: |
-          make -C kernel-source/common \
+          KERNEL_DIR="$GITHUB_WORKSPACE/kernel-source"
+          if [ -f "$KERNEL_DIR/common/Makefile" ]; then
+            KERNEL_DIR="$KERNEL_DIR/common"
+          fi
+          make -C "$KERNEL_DIR" \
             M=$GITHUB_WORKSPACE/kernelsu/kernel \
             ARCH=arm64 LLVM=1 \
             -j$(nproc) modules
